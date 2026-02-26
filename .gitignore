@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+.DS_Store
+# run logs are local artifacts
+/evolve/runs/
+# scratch
+/tmp/
