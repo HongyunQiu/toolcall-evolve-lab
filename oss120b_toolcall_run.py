@@ -488,11 +488,23 @@ def run_task_once(
     local_retry: bool = False,
     local_retry_max: int = 1,
     max_output_tokens: int = 900,
+    dump_convo_path: str = "",
 ) -> Dict[str, Any]:
     # IMPORTANT: include the original task in the returned run log so downstream
     # verifiers/judges can evaluate completion.
     task_original = task
     api_key = os.environ.get("OPENAI_API_KEY")
+
+    def _trace(obj: Dict[str, Any]) -> None:
+        if not dump_convo_path:
+            return
+        try:
+            fp = Path(dump_convo_path)
+            fp.parent.mkdir(parents=True, exist_ok=True)
+            with fp.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
 
     def _to_output_item(tc_raw: Dict[str, Any], result_obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         call_id = tc_raw.get("call_id") or tc_raw.get("id")
@@ -524,7 +536,24 @@ def run_task_once(
                 "max_output_tokens": int(max_output_tokens),
             }
 
+            _trace({
+                "type": "request",
+                "step": step_i,
+                "model": model,
+                "base_url": base_url,
+                "payload": payload,
+                "time": time.time(),
+            })
+
             status, j = _post_response(client, base_url, api_key, payload)
+
+            _trace({
+                "type": "response",
+                "step": step_i,
+                "status": status,
+                "json": j,
+                "time": time.time(),
+            })
 
             # Self-heal: vLLM Responses API occasionally returns 400 like
             # "Unknown channel: final_answer" / similar parser glitches.
@@ -536,6 +565,13 @@ def run_task_once(
                     msg = ""
                 if "Unknown channel" in msg or "unexpected tokens remaining" in msg:
                     status, j = _post_response(client, base_url, api_key, payload)
+                    _trace({
+                        "type": "response_retry",
+                        "step": step_i,
+                        "status": status,
+                        "json": j,
+                        "time": time.time(),
+                    })
 
             if status != 200:
                 return {
@@ -545,6 +581,7 @@ def run_task_once(
                     "raw": j,
                     "steps": steps,
                     "executed": executed,
+                    "dump_convo": dump_convo_path or "",
                 }
 
             tool_calls = _extract_tool_calls(j)
@@ -656,6 +693,7 @@ def run_task_once(
             "executed": executed,
             "temperature": temperature,
             "top_p": top_p,
+            "dump_convo": dump_convo_path or "",
         }
 
     return {
@@ -668,6 +706,7 @@ def run_task_once(
         "executed": executed,
         "temperature": temperature,
         "top_p": top_p,
+        "dump_convo": dump_convo_path or "",
     }
 
 
@@ -680,6 +719,14 @@ def main() -> None:
     ap.add_argument("--top-p", type=float, default=1.0)
     ap.add_argument("--max-steps", type=int, default=12)
     ap.add_argument("--max-output-tokens", type=int, default=900, help="Responses API max_output_tokens per step (default 900).")
+    ap.add_argument(
+        "--dump-convo",
+        default="",
+        help=(
+            "Dump full per-step request payload (including convo) and raw responses as JSONL. "
+            "If empty, disables. If set to 'auto', writes to evolve/traces/trace-<timestamp>.jsonl."
+        ),
+    )
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--keep-sandbox", action="store_true", help="Keep sandbox dir path printed for inspection.")
     ap.add_argument("--dump-json", action="store_true", help="Print full run JSON (debug).")
@@ -767,6 +814,14 @@ def main() -> None:
         raise SystemExit(2)
 
     sandbox = make_default_sandbox()
+
+    dump_convo_path = ""
+    if isinstance(args.dump_convo, str) and args.dump_convo.strip():
+        if args.dump_convo.strip() == "auto":
+            ts0 = time.strftime("%Y%m%d-%H%M%S")
+            dump_convo_path = str(Path(__file__).parent / "evolve" / "traces" / f"trace-{ts0}.jsonl")
+        else:
+            dump_convo_path = str(Path(args.dump_convo).expanduser())
 
     recipe_text = ""
     if args.recipe:
@@ -1019,6 +1074,7 @@ def main() -> None:
                 local_retry=bool(args.local_retry),
                 local_retry_max=int(args.local_retry_max),
                 max_output_tokens=int(args.max_output_tokens),
+                dump_convo_path=dump_convo_path,
             )
 
             best = res
@@ -1082,6 +1138,7 @@ def main() -> None:
                 local_retry=bool(args.local_retry),
                 local_retry_max=int(args.local_retry_max),
                 max_output_tokens=int(args.max_output_tokens),
+                dump_convo_path=dump_convo_path,
             )
 
             best = res
