@@ -487,6 +487,7 @@ def run_task_once(
     extra_system: str = "",
     local_retry: bool = False,
     local_retry_max: int = 1,
+    max_output_tokens: int = 900,
 ) -> Dict[str, Any]:
     # IMPORTANT: include the original task in the returned run log so downstream
     # verifiers/judges can evaluate completion.
@@ -520,7 +521,7 @@ def run_task_once(
                 "tool_choice": "auto",
                 "temperature": temperature,
                 "top_p": top_p,
-                "max_output_tokens": 900,
+                "max_output_tokens": int(max_output_tokens),
             }
 
             status, j = _post_response(client, base_url, api_key, payload)
@@ -678,6 +679,7 @@ def main() -> None:
     ap.add_argument("--temperature", type=float, default=1.0)
     ap.add_argument("--top-p", type=float, default=1.0)
     ap.add_argument("--max-steps", type=int, default=12)
+    ap.add_argument("--max-output-tokens", type=int, default=900, help="Responses API max_output_tokens per step (default 900).")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--keep-sandbox", action="store_true", help="Keep sandbox dir path printed for inspection.")
     ap.add_argument("--dump-json", action="store_true", help="Print full run JSON (debug).")
@@ -1016,6 +1018,7 @@ def main() -> None:
                 extra_system=extra_system,
                 local_retry=bool(args.local_retry),
                 local_retry_max=int(args.local_retry_max),
+                max_output_tokens=int(args.max_output_tokens),
             )
 
             best = res
@@ -1078,6 +1081,7 @@ def main() -> None:
                 extra_system=extra_system,
                 local_retry=bool(args.local_retry),
                 local_retry_max=int(args.local_retry_max),
+                max_output_tokens=int(args.max_output_tokens),
             )
 
             best = res
