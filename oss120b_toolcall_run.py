@@ -802,7 +802,12 @@ def main() -> None:
                     "evidence": "executed[*].tool=write_file",
                 })
                 add_constraints.append("You MUST create ALL required files listed in the task via write_file().")
-                add_constraints.append("After writing files, call list_dir('.') and verify the files exist and are non-empty, then call final().")
+                # Skeleton-first strategy to avoid long tool arguments getting truncated.
+                add_constraints.append(
+                    "Write files in TWO phases: (1) create ALL 7 files as SHORT skeletons first (<= 25 lines each, include at least 1 link and 2-3 bullets), then (2) optionally enrich each file in a second pass if you still have steps left."
+                )
+                add_constraints.append("Keep each write_file content under 2000 characters to avoid tool argument truncation.")
+                add_constraints.append("After writing files, call list_dir('.') and verify the files exist, then call final() with a short summary of what you created.")
 
         # If structural checks fail, do not call LLM judge (save cost + avoid confusion).
         if reasons:
