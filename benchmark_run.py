@@ -156,7 +156,9 @@ def main() -> None:
             cmd.append("--local-retry")
             cmd.extend(["--local-retry-max", str(int(args.local_retry_max))])
 
+        t_start = time.time()
         rc, out, err, timed_out = _run_cmd(cmd, cwd=repo, timeout_sec=int(args.timeout_sec) if args.timeout_sec else None)
+        t_end = time.time()
         run_log = _extract_run_log_path(err)
 
         item: Dict[str, Any] = {
@@ -164,6 +166,7 @@ def main() -> None:
             "category": t.get("category"),
             "rc": rc,
             "timed_out": timed_out,
+            "duration_sec": round(t_end - t_start, 3),
             "stdout": (out or "").strip()[:5000],
             "stderr_tail": "\n".join((err or "").splitlines()[-30:]),
             "run_log": run_log,
@@ -180,17 +183,25 @@ def main() -> None:
         results.append(item)
         print(f"{tid}: {'PASS' if item['pass'] else 'FAIL'}")
 
+    durations = [float(r.get("duration_sec") or 0.0) for r in results]
+    pass_durations = [float(r.get("duration_sec") or 0.0) for r in results if r.get("pass")]
+    fail_durations = [float(r.get("duration_sec") or 0.0) for r in results if not r.get("pass")]
+
     summary = {
         "tasks": len(results),
         "pass": sum(1 for r in results if r.get("pass")),
         "fail": sum(1 for r in results if not r.get("pass")),
         "elapsed_sec": round(time.time() - t0, 2),
+        "avg_duration_sec": round(sum(durations) / max(1, len(durations)), 3),
+        "avg_pass_duration_sec": round(sum(pass_durations) / max(1, len(pass_durations)), 3),
+        "avg_fail_duration_sec": round(sum(fail_durations) / max(1, len(fail_durations)), 3),
         "results": results,
     }
 
     Path(args.out).write_text(json.dumps(summary, ensure_ascii=False, indent=2), "utf-8")
     print(f"\nWrote: {args.out}")
     print(f"Pass rate: {summary['pass']}/{summary['tasks']}")
+    print(f"Avg duration: {summary['avg_duration_sec']}s (pass {summary['avg_pass_duration_sec']}s / fail {summary['avg_fail_duration_sec']}s)")
 
 
 if __name__ == "__main__":
