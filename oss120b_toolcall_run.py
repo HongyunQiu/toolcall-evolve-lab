@@ -778,6 +778,7 @@ def main() -> None:
             wrote_ok: Dict[str, bool] = {fn: False for fn in required_files}
             executed = run.get("executed") or []
             if isinstance(executed, list):
+                # (1) Prefer direct evidence from write_file()
                 for e in executed:
                     if not isinstance(e, dict):
                         continue
@@ -787,12 +788,24 @@ def main() -> None:
                     res2 = e.get("result") or {}
                     path2 = str(args2.get("path") or "")
                     if path2 in wrote_ok and res2.get("ok") is True:
-                        # basic non-empty check
-                        b = res2.get("bytes")
-                        if isinstance(b, int) and b > 0:
-                            wrote_ok[path2] = True
-                        else:
-                            wrote_ok[path2] = True  # best-effort
+                        wrote_ok[path2] = True
+
+                # (2) If the model created files in earlier rounds but only did list_dir() in the final round,
+                # accept list_dir evidence as well.
+                for e in executed:
+                    if not isinstance(e, dict):
+                        continue
+                    if e.get("tool") != "list_dir":
+                        continue
+                    res2 = e.get("result") or {}
+                    items = res2.get("items") or []
+                    if not isinstance(items, list):
+                        continue
+                    present = {str(it.get("name")): it for it in items if isinstance(it, dict)}
+                    for fn in required_files:
+                        it = present.get(fn)
+                        if it and it.get("type") == "file" and (it.get("size") or 0) > 0:
+                            wrote_ok[fn] = True
 
             missing = [fn for fn, ok_ in wrote_ok.items() if not ok_]
             if missing:
