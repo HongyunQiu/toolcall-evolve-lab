@@ -55,6 +55,15 @@ python3 oss120b_toolcall_run.py \
   --temperature 1.0
 ```
 
+Checkpointing (resumable multi-step tasks):
+
+```bash
+python3 oss120b_toolcall_run.py \
+  --recipe recipes/checkpointing_v1.md \
+  --task "..." \
+  --auto-fix --max-rounds 3
+```
+
 Web fetch example:
 
 ```bash
