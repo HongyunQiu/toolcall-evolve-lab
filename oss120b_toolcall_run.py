@@ -488,6 +488,7 @@ def run_task_once(
 
     final_text = ""
     saw_final_answer = False
+    saw_any_tool_fail = False
 
     with httpx.Client() as client:
         for step_i in range(max_steps):
@@ -574,22 +575,35 @@ def run_task_once(
 
                 # Nudge to close
                 if any_fail:
+                    saw_any_tool_fail = True
                     convo.append({"role": "user", "content": [{"type": "input_text", "text": "A tool returned ok=false. You MUST now call final with text exactly TOOL_FAIL."}]})
                 else:
                     convo.append({"role": "user", "content": [{"type": "input_text", "text": "You now have sufficient information. You MUST call final({text: ...}) now."}]})
                 continue
 
             # No tool calls:
-            # Practical fallback: if the model outputs plain text after we already executed
-            # a successful command (e.g. python3 task.py), accept it as final.
-            if text.strip():
+            # Rescue: some backends/models sometimes output TOOL_FAIL as plain text or as JSON
+            # instead of calling final(). If we already saw a tool failure, accept it.
+            tstr = text.strip()
+            if tstr:
+                if saw_any_tool_fail and (tstr == "TOOL_FAIL" or '"text": "TOOL_FAIL"' in tstr):
+                    final_text = "TOOL_FAIL"
+                    break
+
+                # Practical fallback: if the model outputs plain text after we already executed
+                # a successful command (e.g. python3 task.py), accept it as final.
                 last = next((e for e in reversed(executed) if e.get("tool") == "run_cli"), None)
                 if last and (last.get("result") or {}).get("ok") is True:
-                    final_text = text.strip()
+                    final_text = tstr
                     break
 
             # Otherwise demand a final() call.
             convo.append({"role": "user", "content": [{"type": "input_text", "text": "You MUST now call final({text: ...}). Do not output normal text."}]})
+
+    # Final safety net: if the model never called final() but we observed a tool failure,
+    # force a deterministic TOOL_FAIL so the outer loop can recover.
+    if (not final_text.strip()) and saw_any_tool_fail:
+        final_text = "TOOL_FAIL"
 
     return {
         "ok": True,
