@@ -1,0 +1,743 @@
+[
+  {
+    "id": "doc_todo_2",
+    "category": "document",
+    "task": "Read notes.txt and write a file todo2.txt that contains ONLY the 2nd TODO line (exactly, including the 'TODO:' prefix). Then call final with a 1-line confirmation.",
+    "required_files": [
+      "todo2.txt"
+    ],
+    "content_regex": {
+      "todo2.txt": "^TODO: \\w+.*"
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "doc_wordcount",
+    "category": "document",
+    "task": "Count how many lines are in alpha.txt and beta.txt (use tools, do not guess). Write a JSON file counts.json with keys alpha_lines and beta_lines as integers. Then final with the JSON on one line.",
+    "required_files": [
+      "counts.json"
+    ],
+    "json_keys": {
+      "counts.json": [
+        "alpha_lines",
+        "beta_lines"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "prog_fib",
+    "category": "programming",
+    "task": "Write a Python script fib.py that prints the first 12 Fibonacci numbers (one per line). Run it with python3 fib.py and write the output to fib.txt. Then final with 'OK'.",
+    "required_files": [
+      "fib.py",
+      "fib.txt"
+    ],
+    "content_regex": {
+      "fib.txt": "^(0\\n1\\n1\\n2\\n3\\n5\\n8\\n13\\n21\\n34\\n55\\n89\\n?)$"
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "prog_csv",
+    "category": "programming+document",
+    "task": "Create a file data.csv with header 'name,score' and 5 rows. Then write a Python script stats.py that reads data.csv and prints the average score as a number with 2 decimals. Run it and write the printed line to avg.txt. Then final with the average.",
+    "required_files": [
+      "data.csv",
+      "stats.py",
+      "avg.txt"
+    ],
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "web_extract_title",
+    "category": "web",
+    "task": "Fetch https://www.iana.org/domains/reserved . Extract the page title and write it to iana_title.txt (single line). Then final with the title.",
+    "required_files": [
+      "iana_title.txt"
+    ],
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "web_md_summary",
+    "category": "web+document",
+    "task": "Fetch https://www.rfc-editor.org/rfc/rfc2606 . Write rfc2606.md with: (1) a 2-sentence summary, (2) 3 bullet key points, (3) the source URL. Then final with 'written rfc2606.md'.",
+    "required_files": [
+      "rfc2606.md"
+    ],
+    "must_include": {
+      "rfc2606.md": [
+        "https://www.rfc-editor.org/rfc/rfc2606"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "web_multi_compare",
+    "category": "web+analysis",
+    "task": "Fetch https://example.com and https://example.org . Write compare.md with: (a) one-line description of each page, (b) 2 differences, (c) both URLs. Then final with 'compare.md done'.",
+    "required_files": [
+      "compare.md"
+    ],
+    "must_include": {
+      "compare.md": [
+        "https://example.com",
+        "https://example.org"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "combo_web_to_code",
+    "category": "web+programming",
+    "task": "Fetch https://www.rfc-editor.org/rfc/rfc8259 . Identify the official title of the document and write it into title.txt. Then write a Python script check_title.py that reads title.txt and prints the number of characters in the title. Run it and write the output to title_len.txt. Then final with the character count.",
+    "required_files": [
+      "title.txt",
+      "check_title.py",
+      "title_len.txt"
+    ],
+    "max_rounds": 3,
+    "max_steps": 14
+  },
+  {
+    "id": "doc_transform",
+    "category": "document",
+    "task": "Read notes.txt. Create a new file notes_clean.md that contains ONLY the TODO lines as a markdown checklist. Then final with the number of TODO items.",
+    "required_files": [
+      "notes_clean.md"
+    ],
+    "must_include": {
+      "notes_clean.md": [
+        "- [ ] TODO:"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "prog_text_search",
+    "category": "programming+document",
+    "task": "Write a Python script grep_notes.py that reads notes.txt and prints only lines containing 'TODO'. Run it and save output to todos.txt. Then final with 'todos saved'.",
+    "required_files": [
+      "grep_notes.py",
+      "todos.txt"
+    ],
+    "must_include": {
+      "todos.txt": [
+        "TODO:"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "doc_sort_alpha",
+    "category": "document",
+    "task": "Read alpha.txt, sort lines alphabetically, write to alpha_sorted.txt (same lines, one per line). Then final with 'alpha_sorted.txt written'.",
+    "required_files": [
+      "alpha_sorted.txt"
+    ],
+    "must_include": {
+      "alpha_sorted.txt": [
+        "apple",
+        "banana",
+        "carrot"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "doc_unique_words",
+    "category": "document+programming",
+    "task": "Write a Python script unique_words.py that reads alpha.txt and prints the unique words in sorted order, one per line. Run it and save output to alpha_unique.txt. Then final with 'done'.",
+    "required_files": [
+      "unique_words.py",
+      "alpha_unique.txt"
+    ],
+    "must_include": {
+      "alpha_unique.txt": [
+        "apple",
+        "banana",
+        "carrot"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "doc_merge_files",
+    "category": "document",
+    "task": "Create merged.txt by concatenating alpha.txt then beta.txt (exact order, keep original line breaks). Then final with the number of lines in merged.txt.",
+    "required_files": [
+      "merged.txt"
+    ],
+    "must_include": {
+      "merged.txt": [
+        "apple",
+        "one"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "doc_json_todos",
+    "category": "document",
+    "task": "Read notes.txt and write todos.json as a JSON array of strings containing ONLY the TODO lines (exact lines). Then final with the array length.",
+    "required_files": [
+      "todos.json"
+    ],
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "prog_prime",
+    "category": "programming",
+    "task": "Write primes.py that prints all prime numbers <= 50 (one per line). Run it and save to primes.txt. Then final with 'OK'.",
+    "required_files": [
+      "primes.py",
+      "primes.txt"
+    ],
+    "must_include": {
+      "primes.txt": [
+        "47"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "prog_palindrome",
+    "category": "programming+document",
+    "task": "Create words.txt with 8 words, including at least 2 palindromes. Write palindrome.py that prints only palindromes from words.txt. Run it and save to palindromes.txt. Then final with how many palindromes found.",
+    "required_files": [
+      "words.txt",
+      "palindrome.py",
+      "palindromes.txt"
+    ],
+    "max_rounds": 3,
+    "max_steps": 14
+  },
+  {
+    "id": "prog_json_validate",
+    "category": "programming+document",
+    "task": "Write a JSON file person.json with keys name (string) and age (integer). Then write validate.py that reads person.json and prints 'valid' if age is an integer >=0 else 'invalid'. Run it and write output to validate.txt. Then final with the printed word.",
+    "required_files": [
+      "person.json",
+      "validate.py",
+      "validate.txt"
+    ],
+    "json_keys": {
+      "person.json": [
+        "name",
+        "age"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 14
+  },
+  {
+    "id": "web_http_status",
+    "category": "web",
+    "task": "Fetch https://example.com and write a file example_status.txt containing ONLY the HTTP status code as digits. Then final with the same digits.",
+    "required_files": [
+      "example_status.txt"
+    ],
+    "content_regex": {
+      "example_status.txt": "^200$"
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "web_extract_h1",
+    "category": "web",
+    "task": "Fetch https://example.com . Extract the first <h1> text and write to example_h1.txt (single line). Then final with that line.",
+    "required_files": [
+      "example_h1.txt"
+    ],
+    "must_include": {
+      "example_h1.txt": [
+        "Example Domain"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "web_iana_reserved_list",
+    "category": "web+document",
+    "task": "Fetch https://www.iana.org/domains/reserved . Write reserved_domains.md listing the reserved domains mentioned (as bullet list). Include the source URL. Then final with how many bullet items you listed.",
+    "required_files": [
+      "reserved_domains.md"
+    ],
+    "must_include": {
+      "reserved_domains.md": [
+        "example.com",
+        "iana.org/domains/reserved"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "web_rfc_link",
+    "category": "web+document",
+    "task": "Fetch https://www.rfc-editor.org/rfc/rfc2119 . Write rfc2119.md containing: title line, 3 bullet points of key ideas, and the source URL. Then final with 'rfc2119.md written'.",
+    "required_files": [
+      "rfc2119.md"
+    ],
+    "must_include": {
+      "rfc2119.md": [
+        "https://www.rfc-editor.org/rfc/rfc2119"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "combo_web_to_table",
+    "category": "web+programming+document",
+    "task": "Fetch https://www.iana.org/domains/reserved . Extract all reserved domain names you can find. Write them to domains.txt (one per line). Then write count_domains.py that counts lines in domains.txt and prints the count. Run it and write output to domain_count.txt. Then final with the count.",
+    "required_files": [
+      "domains.txt",
+      "count_domains.py",
+      "domain_count.txt"
+    ],
+    "must_include": {
+      "domains.txt": [
+        "example.com"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 14
+  },
+  {
+    "id": "combo_generate_report",
+    "category": "programming+document",
+    "task": "Write report.md with 3 sections: Intro, Data, Conclusion. In Data, include a 2-column markdown table with 3 rows of sample numbers. Then final with 'report.md done'.",
+    "required_files": [
+      "report.md"
+    ],
+    "must_include": {
+      "report.md": [
+        "|",
+        "Intro",
+        "Conclusion"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "prog_sum_1",
+    "category": "programming",
+    "task": "Write nums.txt with 6 integers (one per line). Write sum.py that reads nums.txt and prints their sum. Run it and save output to sum.txt. Then final with the sum.",
+    "required_files": [
+      "nums.txt",
+      "sum.py",
+      "sum.txt"
+    ],
+    "max_rounds": 3,
+    "max_steps": 14
+  },
+  {
+    "id": "web_title_2",
+    "category": "web",
+    "task": "Fetch https://www.iana.org/ . Extract the page title and write it to iana_home_title.txt. Then final with the title.",
+    "required_files": [
+      "iana_home_title.txt"
+    ],
+    "must_include": {
+      "iana_home_title.txt": [
+        "IANA"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "combo_notes_stats_3",
+    "category": "programming+document",
+    "task": "Read notes.txt, count how many lines start with TODO and how many start with DONE. Write counts.md with both counts. Then final with both counts in one line like 'TODO=X DONE=Y'.",
+    "required_files": [
+      "counts.md"
+    ],
+    "must_include": {
+      "counts.md": [
+        "TODO",
+        "DONE"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "doc_template_4",
+    "category": "document",
+    "task": "Create a markdown file template.md with a title, 3 bullet points, and a source line 'Source: internal'. Then final with 'template.md created'.",
+    "required_files": [
+      "template.md"
+    ],
+    "must_include": {
+      "template.md": [
+        "Source: internal"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "doc_cut_5",
+    "category": "document",
+    "task": "Read beta.txt and write beta_first3.txt containing ONLY the first 3 lines. Then final with the last line of beta_first3.txt.",
+    "required_files": [
+      "beta_first3.txt"
+    ],
+    "must_include": {
+      "beta_first3.txt": [
+        "one",
+        "two",
+        "three"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "prog_sum_6",
+    "category": "programming",
+    "task": "Write nums.txt with 11 integers (one per line). Write sum.py that reads nums.txt and prints their sum. Run it and save output to sum.txt. Then final with the sum.",
+    "required_files": [
+      "nums.txt",
+      "sum.py",
+      "sum.txt"
+    ],
+    "max_rounds": 3,
+    "max_steps": 14
+  },
+  {
+    "id": "web_title_7",
+    "category": "web",
+    "task": "Fetch https://www.iana.org/ . Extract the page title and write it to iana_home_title.txt. Then final with the title.",
+    "required_files": [
+      "iana_home_title.txt"
+    ],
+    "must_include": {
+      "iana_home_title.txt": [
+        "IANA"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "combo_notes_stats_8",
+    "category": "programming+document",
+    "task": "Read notes.txt, count how many lines start with TODO and how many start with DONE. Write counts.md with both counts. Then final with both counts in one line like 'TODO=X DONE=Y'.",
+    "required_files": [
+      "counts.md"
+    ],
+    "must_include": {
+      "counts.md": [
+        "TODO",
+        "DONE"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "doc_template_9",
+    "category": "document",
+    "task": "Create a markdown file template.md with a title, 3 bullet points, and a source line 'Source: internal'. Then final with 'template.md created'.",
+    "required_files": [
+      "template.md"
+    ],
+    "must_include": {
+      "template.md": [
+        "Source: internal"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "doc_cut_10",
+    "category": "document",
+    "task": "Read beta.txt and write beta_first3.txt containing ONLY the first 3 lines. Then final with the last line of beta_first3.txt.",
+    "required_files": [
+      "beta_first3.txt"
+    ],
+    "must_include": {
+      "beta_first3.txt": [
+        "one",
+        "two",
+        "three"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "prog_sum_11",
+    "category": "programming",
+    "task": "Write nums.txt with 9 integers (one per line). Write sum.py that reads nums.txt and prints their sum. Run it and save output to sum.txt. Then final with the sum.",
+    "required_files": [
+      "nums.txt",
+      "sum.py",
+      "sum.txt"
+    ],
+    "max_rounds": 3,
+    "max_steps": 14
+  },
+  {
+    "id": "web_title_12",
+    "category": "web",
+    "task": "Fetch https://www.iana.org/ . Extract the page title and write it to iana_home_title.txt. Then final with the title.",
+    "required_files": [
+      "iana_home_title.txt"
+    ],
+    "must_include": {
+      "iana_home_title.txt": [
+        "IANA"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "combo_notes_stats_13",
+    "category": "programming+document",
+    "task": "Read notes.txt, count how many lines start with TODO and how many start with DONE. Write counts.md with both counts. Then final with both counts in one line like 'TODO=X DONE=Y'.",
+    "required_files": [
+      "counts.md"
+    ],
+    "must_include": {
+      "counts.md": [
+        "TODO",
+        "DONE"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "doc_template_14",
+    "category": "document",
+    "task": "Create a markdown file template.md with a title, 3 bullet points, and a source line 'Source: internal'. Then final with 'template.md created'.",
+    "required_files": [
+      "template.md"
+    ],
+    "must_include": {
+      "template.md": [
+        "Source: internal"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "doc_cut_15",
+    "category": "document",
+    "task": "Read beta.txt and write beta_first3.txt containing ONLY the first 3 lines. Then final with the last line of beta_first3.txt.",
+    "required_files": [
+      "beta_first3.txt"
+    ],
+    "must_include": {
+      "beta_first3.txt": [
+        "one",
+        "two",
+        "three"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "prog_sum_16",
+    "category": "programming",
+    "task": "Write nums.txt with 7 integers (one per line). Write sum.py that reads nums.txt and prints their sum. Run it and save output to sum.txt. Then final with the sum.",
+    "required_files": [
+      "nums.txt",
+      "sum.py",
+      "sum.txt"
+    ],
+    "max_rounds": 3,
+    "max_steps": 14
+  },
+  {
+    "id": "web_title_17",
+    "category": "web",
+    "task": "Fetch https://www.iana.org/ . Extract the page title and write it to iana_home_title.txt. Then final with the title.",
+    "required_files": [
+      "iana_home_title.txt"
+    ],
+    "must_include": {
+      "iana_home_title.txt": [
+        "IANA"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "combo_notes_stats_18",
+    "category": "programming+document",
+    "task": "Read notes.txt, count how many lines start with TODO and how many start with DONE. Write counts.md with both counts. Then final with both counts in one line like 'TODO=X DONE=Y'.",
+    "required_files": [
+      "counts.md"
+    ],
+    "must_include": {
+      "counts.md": [
+        "TODO",
+        "DONE"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "doc_template_19",
+    "category": "document",
+    "task": "Create a markdown file template.md with a title, 3 bullet points, and a source line 'Source: internal'. Then final with 'template.md created'.",
+    "required_files": [
+      "template.md"
+    ],
+    "must_include": {
+      "template.md": [
+        "Source: internal"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "doc_cut_20",
+    "category": "document",
+    "task": "Read beta.txt and write beta_first3.txt containing ONLY the first 3 lines. Then final with the last line of beta_first3.txt.",
+    "required_files": [
+      "beta_first3.txt"
+    ],
+    "must_include": {
+      "beta_first3.txt": [
+        "one",
+        "two",
+        "three"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "prog_sum_21",
+    "category": "programming",
+    "task": "Write nums.txt with 5 integers (one per line). Write sum.py that reads nums.txt and prints their sum. Run it and save output to sum.txt. Then final with the sum.",
+    "required_files": [
+      "nums.txt",
+      "sum.py",
+      "sum.txt"
+    ],
+    "max_rounds": 3,
+    "max_steps": 14
+  },
+  {
+    "id": "web_title_22",
+    "category": "web",
+    "task": "Fetch https://www.iana.org/ . Extract the page title and write it to iana_home_title.txt. Then final with the title.",
+    "required_files": [
+      "iana_home_title.txt"
+    ],
+    "must_include": {
+      "iana_home_title.txt": [
+        "IANA"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "combo_notes_stats_23",
+    "category": "programming+document",
+    "task": "Read notes.txt, count how many lines start with TODO and how many start with DONE. Write counts.md with both counts. Then final with both counts in one line like 'TODO=X DONE=Y'.",
+    "required_files": [
+      "counts.md"
+    ],
+    "must_include": {
+      "counts.md": [
+        "TODO",
+        "DONE"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "doc_template_24",
+    "category": "document",
+    "task": "Create a markdown file template.md with a title, 3 bullet points, and a source line 'Source: internal'. Then final with 'template.md created'.",
+    "required_files": [
+      "template.md"
+    ],
+    "must_include": {
+      "template.md": [
+        "Source: internal"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "doc_cut_25",
+    "category": "document",
+    "task": "Read beta.txt and write beta_first3.txt containing ONLY the first 3 lines. Then final with the last line of beta_first3.txt.",
+    "required_files": [
+      "beta_first3.txt"
+    ],
+    "must_include": {
+      "beta_first3.txt": [
+        "one",
+        "two",
+        "three"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "prog_sum_26",
+    "category": "programming",
+    "task": "Write nums.txt with 10 integers (one per line). Write sum.py that reads nums.txt and prints their sum. Run it and save output to sum.txt. Then final with the sum.",
+    "required_files": [
+      "nums.txt",
+      "sum.py",
+      "sum.txt"
+    ],
+    "max_rounds": 3,
+    "max_steps": 14
+  },
+  {
+    "id": "web_title_27",
+    "category": "web",
+    "task": "Fetch https://www.iana.org/ . Extract the page title and write it to iana_home_title.txt. Then final with the title.",
+    "required_files": [
+      "iana_home_title.txt"
+    ],
+    "must_include": {
+      "iana_home_title.txt": [
+        "IANA"
+      ]
+    },
+    "max_rounds": 3,
+    "max_steps": 12
+  }
+]

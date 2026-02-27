@@ -81,12 +81,13 @@ python3 oss120b_toolcall_benchmark.py --trials 3 --per-level 20 --temperature 1.
 
 #### b) Realistic task-set benchmark (programming/web/docs/mixed)
 
-Task set:
-- `tasks/tasks_v1.json`
+Task sets:
+- `tasks/tasks_v1.json` (10 tasks)
+- `tasks/tasks_v1_50.json` (50 tasks)
 
-Run:
+Run (50 tasks + per-task timeout):
 ```bash
-python3 benchmark_run.py --allow-any-cli
+python3 benchmark_run.py --tasks tasks/tasks_v1_50.json --allow-any-cli --timeout-sec 600
 ```
 
 Outputs:

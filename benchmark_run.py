@@ -26,9 +26,14 @@ def _read_json(p: Path) -> Any:
     return json.loads(p.read_text("utf-8"))
 
 
-def _run_cmd(cmd: List[str], cwd: Path) -> Tuple[int, str, str]:
-    p = subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True)
-    return p.returncode, p.stdout, p.stderr
+def _run_cmd(cmd: List[str], cwd: Path, timeout_sec: int | None) -> Tuple[int, str, str, bool]:
+    try:
+        p = subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True, timeout=timeout_sec)
+        return p.returncode, p.stdout, p.stderr, False
+    except subprocess.TimeoutExpired as e:
+        out = (e.stdout or "") if isinstance(e.stdout, str) else ""
+        err = (e.stderr or "") if isinstance(e.stderr, str) else ""
+        return 124, out, err + "\n[TIMEOUT]", True
 
 
 def _extract_run_log_path(stderr: str) -> str | None:
@@ -117,6 +122,7 @@ def main() -> None:
     ap.add_argument("--auto-fix", action="store_true", default=True)
     ap.add_argument("--max-rounds", type=int, default=3)
     ap.add_argument("--out", default=str(Path(__file__).parent / "benchmark_results.json"))
+    ap.add_argument("--timeout-sec", type=int, default=600, help="Per-task subprocess timeout (default 600s).")
     args = ap.parse_args()
 
     repo = Path(__file__).parent
@@ -145,14 +151,15 @@ def main() -> None:
         if args.allow_any_cli or t.get("allow_any_cli"):
             cmd.append("--allow-any-cli")
 
-        rc, out, err = _run_cmd(cmd, cwd=repo)
+        rc, out, err, timed_out = _run_cmd(cmd, cwd=repo, timeout_sec=int(args.timeout_sec) if args.timeout_sec else None)
         run_log = _extract_run_log_path(err)
 
         item: Dict[str, Any] = {
             "id": tid,
             "category": t.get("category"),
             "rc": rc,
-            "stdout": out.strip()[:5000],
+            "timed_out": timed_out,
+            "stdout": (out or "").strip()[:5000],
             "stderr_tail": "\n".join((err or "").splitlines()[-30:]),
             "run_log": run_log,
         }
