@@ -124,6 +124,7 @@ CLI sandbox looseners (unsafe; not a real OS sandbox):
 ## Safety notes
 This project uses a *working-directory sandbox* (temp directory). It is **not** a container/VM.
 
+- `write_file` writes **UTF-8 text** into the sandbox using a **relative path**. Any filename/extension is allowed, but size is capped.
 - `--allow-shell` is UNSAFE: it runs commands through `/bin/zsh` and enables pipes/redirects.
 - Use a VM/Docker for maximal freedom (e.g. apt-get) and better isolation.
 

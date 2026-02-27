@@ -361,9 +361,8 @@ def tool_write_file(root: Path, path: str, content: str) -> Dict[str, Any]:
     if root.resolve() not in fp.parents and fp != root.resolve():
         raise ValueError("path_escape")
 
-    # Keep it simple + safe: only allow .py/.txt/.md by default
-    if not (rel.endswith(".py") or rel.endswith(".txt") or rel.endswith(".md")):
-        return {"ok": False, "error": "extension_not_allowed"}
+    # Allow any text filename/extension.
+    # Safety is enforced via: sandbox-relative paths, size limits, and UTF-8 text write.
 
     if len(content) > 50_000:
         return {"ok": False, "error": "content_too_large"}
