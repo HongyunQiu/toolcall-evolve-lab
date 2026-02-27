@@ -1,0 +1,89 @@
+[
+  {
+    "id": "doc_todo_2",
+    "category": "document",
+    "task": "Read notes.txt and write a file todo2.txt that contains ONLY the 2nd TODO line (exactly, including the 'TODO:' prefix). Then call final with a 1-line confirmation.",
+    "required_files": ["todo2.txt"],
+    "content_regex": {"todo2.txt": "^TODO: \\w+.*"},
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "doc_wordcount",
+    "category": "document",
+    "task": "Count how many lines are in alpha.txt and beta.txt (use tools, do not guess). Write a JSON file counts.json with keys alpha_lines and beta_lines as integers. Then final with the JSON on one line.",
+    "required_files": ["counts.json"],
+    "json_keys": {"counts.json": ["alpha_lines", "beta_lines"]},
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "prog_fib",
+    "category": "programming",
+    "task": "Write a Python script fib.py that prints the first 12 Fibonacci numbers (one per line). Run it with python3 fib.py and write the output to fib.txt. Then final with 'OK'.",
+    "required_files": ["fib.py", "fib.txt"],
+    "content_regex": {"fib.txt": "^(0\\n1\\n1\\n2\\n3\\n5\\n8\\n13\\n21\\n34\\n55\\n89\\n?)$"},
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "prog_csv",
+    "category": "programming+document",
+    "task": "Create a file data.csv with header 'name,score' and 5 rows. Then write a Python script stats.py that reads data.csv and prints the average score as a number with 2 decimals. Run it and write the printed line to avg.txt. Then final with the average.",
+    "required_files": ["data.csv", "stats.py", "avg.txt"],
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "web_extract_title",
+    "category": "web",
+    "task": "Fetch https://www.iana.org/domains/reserved . Extract the page title and write it to iana_title.txt (single line). Then final with the title.",
+    "required_files": ["iana_title.txt"],
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "web_md_summary",
+    "category": "web+document",
+    "task": "Fetch https://www.rfc-editor.org/rfc/rfc2606 . Write rfc2606.md with: (1) a 2-sentence summary, (2) 3 bullet key points, (3) the source URL. Then final with 'written rfc2606.md'.",
+    "required_files": ["rfc2606.md"],
+    "must_include": {"rfc2606.md": ["https://www.rfc-editor.org/rfc/rfc2606"]},
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "web_multi_compare",
+    "category": "web+analysis",
+    "task": "Fetch https://example.com and https://example.org . Write compare.md with: (a) one-line description of each page, (b) 2 differences, (c) both URLs. Then final with 'compare.md done'.",
+    "required_files": ["compare.md"],
+    "must_include": {"compare.md": ["https://example.com", "https://example.org"]},
+    "max_rounds": 3,
+    "max_steps": 12
+  },
+  {
+    "id": "combo_web_to_code",
+    "category": "web+programming",
+    "task": "Fetch https://www.rfc-editor.org/rfc/rfc8259 . Identify the official title of the document and write it into title.txt. Then write a Python script check_title.py that reads title.txt and prints the number of characters in the title. Run it and write the output to title_len.txt. Then final with the character count.",
+    "required_files": ["title.txt", "check_title.py", "title_len.txt"],
+    "max_rounds": 3,
+    "max_steps": 14
+  },
+  {
+    "id": "doc_transform",
+    "category": "document",
+    "task": "Read notes.txt. Create a new file notes_clean.md that contains ONLY the TODO lines as a markdown checklist. Then final with the number of TODO items.",
+    "required_files": ["notes_clean.md"],
+    "must_include": {"notes_clean.md": ["- [ ] TODO:"]},
+    "max_rounds": 3,
+    "max_steps": 10
+  },
+  {
+    "id": "prog_text_search",
+    "category": "programming+document",
+    "task": "Write a Python script grep_notes.py that reads notes.txt and prints only lines containing 'TODO'. Run it and save output to todos.txt. Then final with 'todos saved'.",
+    "required_files": ["grep_notes.py", "todos.txt"],
+    "must_include": {"todos.txt": ["TODO:"]},
+    "max_rounds": 3,
+    "max_steps": 12
+  }
+]

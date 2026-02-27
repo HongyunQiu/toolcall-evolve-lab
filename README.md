@@ -71,11 +71,26 @@ python3 oss120b_toolcall_run.py \
 
 Runs are saved by default to `evolve/runs/run-*.json`.
 
-### 3) Benchmark
+### 3) Benchmarks
+
+#### a) Built-in L1–L4 benchmark
 
 ```bash
 python3 oss120b_toolcall_benchmark.py --trials 3 --per-level 20 --temperature 1.0
 ```
+
+#### b) Realistic task-set benchmark (programming/web/docs/mixed)
+
+Task set:
+- `tasks/tasks_v1.json`
+
+Run:
+```bash
+python3 benchmark_run.py --allow-any-cli
+```
+
+Outputs:
+- `benchmark_results.json` — per-task PASS/FAIL + run_log paths + verifier errors
 
 ## CLI arguments (runner)
 
