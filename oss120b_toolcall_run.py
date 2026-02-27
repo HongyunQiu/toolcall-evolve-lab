@@ -418,6 +418,10 @@ def _exec_tool(
     allow_abs_paths: bool = False,
     cli_timeout_sec: int = 8,
 ) -> Dict[str, Any]:
+    # If backend returned truncated/unparsed arguments, treat as a hard tool error.
+    if isinstance(args, dict) and args.get("_unparsed"):
+        return {"ok": False, "error": "bad_arguments_unparsed", "_unparsed": str(args.get("_unparsed"))[:500]}
+
     if name == "list_dir":
         return tool_list_dir(root, path=str(args.get("path", ".")))
     if name == "read_file":
