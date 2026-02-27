@@ -123,6 +123,8 @@ def main() -> None:
     ap.add_argument("--max-rounds", type=int, default=3)
     ap.add_argument("--out", default=str(Path(__file__).parent / "benchmark_results.json"))
     ap.add_argument("--timeout-sec", type=int, default=600, help="Per-task subprocess timeout (default 600s).")
+    ap.add_argument("--local-retry", action="store_true", help="Forward --local-retry to the runner.")
+    ap.add_argument("--local-retry-max", type=int, default=1, help="Forward --local-retry-max to the runner.")
     args = ap.parse_args()
 
     repo = Path(__file__).parent
@@ -150,6 +152,9 @@ def main() -> None:
         ]
         if args.allow_any_cli or t.get("allow_any_cli"):
             cmd.append("--allow-any-cli")
+        if args.local_retry:
+            cmd.append("--local-retry")
+            cmd.extend(["--local-retry-max", str(int(args.local_retry_max))])
 
         rc, out, err, timed_out = _run_cmd(cmd, cwd=repo, timeout_sec=int(args.timeout_sec) if args.timeout_sec else None)
         run_log = _extract_run_log_path(err)
