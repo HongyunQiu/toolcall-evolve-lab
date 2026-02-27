@@ -609,6 +609,21 @@ def run_task_once(
     if (not final_text.strip()) and saw_any_tool_fail:
         final_text = "TOOL_FAIL"
 
+    # If we still have no final at all, treat as a failed run (useful when max_steps is hit).
+    if (not saw_final_answer) and (not final_text.strip()):
+        return {
+            "ok": False,
+            "task": task_original,
+            "sandbox": str(root),
+            "error": "no_final",
+            "final": "",
+            "saw_final_answer": False,
+            "steps": steps,
+            "executed": executed,
+            "temperature": temperature,
+            "top_p": top_p,
+        }
+
     return {
         "ok": True,
         "task": task_original,
