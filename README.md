@@ -100,6 +100,9 @@ Outputs:
 
 Common arguments for `oss120b_toolcall_run.py`:
 
+- `--local-retry`: allow limited *in-round* recovery when a tool fails (instead of immediate TOOL_FAIL).
+- `--local-retry-max <n>`: max number of in-round recoveries (default 1).
+
 - `--task <text>`: the task to perform (natural language). If omitted, reads from stdin.
 - `--recipe <path>`: inject a recipe markdown file as extra system instructions.
 - `--temperature <float>` / `--top-p <float>`: sampling params for the model.

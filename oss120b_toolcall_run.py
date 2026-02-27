@@ -344,11 +344,23 @@ TOOLS_SPEC = [
 ]
 
 
-SYSTEM = (
+SYSTEM_STRICT = (
     "You are a tool-using assistant running in a sandbox.\n"
     "Hard rules (non-negotiable):\n"
     "- You MUST use tools to read/write files and run CLI; never guess.\n"
     "- If ANY tool result has ok=false (or indicates an error), you MUST call final with text exactly 'TOOL_FAIL'.\n"
+    "- You MUST NOT produce a normal text answer directly. Your final response MUST be via the tool final({text}).\n"
+    "- Do NOT fabricate file contents or command outputs.\n"
+    "- Keep final text minimal and follow the user's requested output format exactly.\n"
+)
+
+SYSTEM_LOCAL_RETRY = (
+    "You are a tool-using assistant running in a sandbox.\n"
+    "Hard rules (non-negotiable):\n"
+    "- You MUST use tools to read/write files and run CLI; never guess.\n"
+    "- Tool failures are recoverable ONLY when the user enabled LOCAL_RETRY mode.\n"
+    "- In LOCAL_RETRY mode: when a tool returns ok=false, you should fix the issue and try an alternative approach.\n"
+    "  Only if you cannot recover after the allowed retries, call final with text exactly 'TOOL_FAIL'.\n"
     "- You MUST NOT produce a normal text answer directly. Your final response MUST be via the tool final({text}).\n"
     "- Do NOT fabricate file contents or command outputs.\n"
     "- Keep final text minimal and follow the user's requested output format exactly.\n"
@@ -473,6 +485,8 @@ def run_task_once(
     allow_abs_paths: bool = False,
     cli_timeout_sec: int = 8,
     extra_system: str = "",
+    local_retry: bool = False,
+    local_retry_max: int = 1,
 ) -> Dict[str, Any]:
     # IMPORTANT: include the original task in the returned run log so downstream
     # verifiers/judges can evaluate completion.
@@ -493,11 +507,14 @@ def run_task_once(
     saw_final_answer = False
     saw_any_tool_fail = False
 
+    local_retry_used = 0
+
     with httpx.Client() as client:
         for step_i in range(max_steps):
+            system_text = (SYSTEM_LOCAL_RETRY if local_retry else SYSTEM_STRICT)
             payload = {
                 "model": model,
-                "instructions": (SYSTEM + ("\n" + extra_system.strip() if extra_system.strip() else "")),
+                "instructions": (system_text + ("\n" + extra_system.strip() if extra_system.strip() else "")), 
                 "input": convo,
                 "tools": TOOLS_SPEC,
                 "tool_choice": "auto",
@@ -576,10 +593,27 @@ def run_task_once(
                     if out_item:
                         convo.append(out_item)
 
-                # Nudge to close
+                # Nudge after tool execution
                 if any_fail:
                     saw_any_tool_fail = True
-                    convo.append({"role": "user", "content": [{"type": "input_text", "text": "A tool returned ok=false. You MUST now call final with text exactly TOOL_FAIL."}]})
+                    if local_retry and local_retry_used < max(0, int(local_retry_max)):
+                        local_retry_used += 1
+                        convo.append({
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "input_text",
+                                    "text": (
+                                        "A tool returned ok=false. LOCAL_RETRY is enabled. "
+                                        "You may recover by changing strategy/parameters and trying again. "
+                                        "Do NOT repeat the same failing call. "
+                                        f"Local-retry used: {local_retry_used}/{int(local_retry_max)}."
+                                    ),
+                                }
+                            ],
+                        })
+                    else:
+                        convo.append({"role": "user", "content": [{"type": "input_text", "text": "A tool returned ok=false. You MUST now call final with text exactly TOOL_FAIL."}]})
                 else:
                     convo.append({"role": "user", "content": [{"type": "input_text", "text": "You now have sufficient information. You MUST call final({text: ...}) now."}]})
                 continue
@@ -707,6 +741,17 @@ def main() -> None:
         "--judge-skill",
         default=str(Path(__file__).parent / "recipes" / "judge_skill_v1.md"),
         help="Judge skill prompt (used by --auto-fix).",
+    )
+    ap.add_argument(
+        "--local-retry",
+        action="store_true",
+        help="Allow limited in-round recovery when a tool fails (instead of immediate TOOL_FAIL).",
+    )
+    ap.add_argument(
+        "--local-retry-max",
+        type=int,
+        default=1,
+        help="Max number of in-round recoveries after tool failures when --local-retry is enabled (default 1).",
     )
     args = ap.parse_args()
 
@@ -969,6 +1014,8 @@ def main() -> None:
                 allow_abs_paths=args.allow_abs_paths,
                 cli_timeout_sec=args.cli_timeout,
                 extra_system=extra_system,
+                local_retry=bool(args.local_retry),
+                local_retry_max=int(args.local_retry_max),
             )
 
             best = res
@@ -1029,6 +1076,8 @@ def main() -> None:
                 allow_abs_paths=args.allow_abs_paths,
                 cli_timeout_sec=args.cli_timeout,
                 extra_system=extra_system,
+                local_retry=bool(args.local_retry),
+                local_retry_max=int(args.local_retry_max),
             )
 
             best = res
