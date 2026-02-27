@@ -59,9 +59,19 @@ def _post_response(client: httpx.Client, base_url: str, api_key: str | None, pay
 
 
 def _extract_output_text(resp_json: Dict[str, Any]) -> str:
+    """Extract best-effort text from a Responses API JSON.
+
+    Different backends may return either:
+    - output: [{type:"message", content:[{type:"output_text", text:"..."}]}]
+    - output: [{type:"output_text", text:"..."}]
+    """
     out_parts: List[str] = []
     for item in resp_json.get("output", []) or []:
-        if item.get("type") != "message":
+        itype = item.get("type")
+        if itype in ("output_text", "text") and isinstance(item.get("text"), str):
+            out_parts.append(item["text"])
+            continue
+        if itype != "message":
             continue
         for c in item.get("content", []) or []:
             if c.get("type") in ("output_text", "text") and isinstance(c.get("text"), str):
@@ -704,7 +714,81 @@ def main() -> None:
         return "\n".join(parts)
 
     def _judge_run(run: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
-        """Return (decision, brief_analysis, patch_json). Decision is PASS or REDO."""
+        """Return (decision, brief_analysis, patch_json). Decision is PASS or REDO.
+
+        We do a *structural* pre-check first (deterministic) to avoid the judge
+        hallucinating a PASS when obvious hard requirements are missing.
+        """
+
+        run_task = (run.get("task") or task or "").strip()
+        final_out = (run.get("final") or "").strip()
+        saw_final = bool(run.get("saw_final_answer"))
+
+        # -------------------------
+        # 1) Structural pre-checks
+        # -------------------------
+        add_constraints: List[str] = []
+        reasons: List[Dict[str, str]] = []
+
+        # (a) Must end via final() tool (otherwise output may be empty even if work was done)
+        if not saw_final or not final_out:
+            reasons.append({
+                "tag": "empty_output",
+                "because": "Run did not end with a non-empty final() answer.",
+                "evidence": f"saw_final_answer={saw_final} final_len={len(final_out)}",
+            })
+            add_constraints.append("You MUST call final({text: ...}) exactly once at the end, and the text must be non-empty.")
+
+        # (b) If task mentions explicit .md filenames, ensure they were written successfully.
+        required_files = sorted(set(re.findall(r"\b[\w.-]+\.md\b", run_task)))
+        if required_files:
+            wrote_ok: Dict[str, bool] = {fn: False for fn in required_files}
+            executed = run.get("executed") or []
+            if isinstance(executed, list):
+                for e in executed:
+                    if not isinstance(e, dict):
+                        continue
+                    if e.get("tool") != "write_file":
+                        continue
+                    args2 = e.get("arguments") or {}
+                    res2 = e.get("result") or {}
+                    path2 = str(args2.get("path") or "")
+                    if path2 in wrote_ok and res2.get("ok") is True:
+                        # basic non-empty check
+                        b = res2.get("bytes")
+                        if isinstance(b, int) and b > 0:
+                            wrote_ok[path2] = True
+                        else:
+                            wrote_ok[path2] = True  # best-effort
+
+            missing = [fn for fn, ok_ in wrote_ok.items() if not ok_]
+            if missing:
+                reasons.append({
+                    "tag": "missing_requirements",
+                    "because": f"Missing required output files: {', '.join(missing)}",
+                    "evidence": "executed[*].tool=write_file",
+                })
+                add_constraints.append("You MUST create ALL required files listed in the task via write_file().")
+                add_constraints.append("After writing files, call list_dir('.') and verify the files exist and are non-empty, then call final().")
+
+        # If structural checks fail, do not call LLM judge (save cost + avoid confusion).
+        if reasons:
+            patch = {
+                "decision": "REDO",
+                "analysis": "Structural verification failed; redo required.",
+                "reasons": reasons,
+                "add_constraints": add_constraints,
+            }
+            brief = "\n".join([
+                "Structural check:",
+                *(f"- {r['tag']}: {r['because']} ({r['evidence']})" for r in reasons),
+                "DECISION: REDO",
+            ])
+            return "REDO", brief, patch
+
+        # -------------------------
+        # 2) LLM-as-judge (semantic)
+        # -------------------------
         judge_skill = Path(args.judge_skill).read_text("utf-8")
 
         # Compact evidence summary (keep judge cheap + evidence-based)
@@ -714,7 +798,7 @@ def main() -> None:
             "ok": run.get("ok"),
             "error": run.get("error"),
             "saw_final_answer": run.get("saw_final_answer"),
-            "final_len": len((run.get("final") or "").strip()),
+            "final_len": len(final_out),
             "executed_tail": [],
         }
         for e in tail:
@@ -735,8 +819,8 @@ def main() -> None:
             evidence["executed_tail"].append(item)
 
         prompt = (
-            "TASK:\n" + (run.get("task") or task) + "\n\n"
-            "FINAL_OUTPUT:\n" + ((run.get("final") or "").strip() or "(empty)") + "\n\n"
+            "TASK:\n" + run_task + "\n\n"
+            "FINAL_OUTPUT:\n" + (final_out or "(empty)") + "\n\n"
             "EVIDENCE(JSON):\n" + json.dumps(evidence, ensure_ascii=False, indent=2)
         )
 
@@ -761,11 +845,9 @@ def main() -> None:
                 }
 
         out = _extract_output_text(j) or ""
-        # Parse decision
         m = re.search(r"DECISION:\s*(PASS|REDO)", out)
         decision = m.group(1) if m else "REDO"
 
-        # Parse patch json
         patch: Dict[str, Any] = {}
         m2 = re.search(r"PATCH_JSON:\s*(\{.*\})\s*$", out.strip(), flags=re.S)
         if m2:

@@ -38,7 +38,11 @@ def _post_response(client: httpx.Client, base_url: str, api_key: str | None, pay
 def _extract_output_text(resp_json: Dict[str, Any]) -> str:
     out_parts: List[str] = []
     for item in resp_json.get("output", []) or []:
-        if item.get("type") != "message":
+        itype = item.get("type")
+        if itype in ("output_text", "text") and isinstance(item.get("text"), str):
+            out_parts.append(item["text"])
+            continue
+        if itype != "message":
             continue
         for c in item.get("content", []) or []:
             if c.get("type") in ("output_text", "text") and isinstance(c.get("text"), str):
