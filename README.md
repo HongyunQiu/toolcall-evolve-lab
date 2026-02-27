@@ -7,6 +7,9 @@ Core idea:
 - Grow capability via **tools** and **recipes**.
 - Persist runs to disk, analyze failures, and auto-propose new recipes.
 
+Project policy:
+- See `EVOLVE_POLICY.md` (default: evolve via assets; do NOT auto-modify core code).
+
 ## Contents
 - `oss120b_toolcall_run.py` — single-task runner (agent-like)
 - `oss120b_toolcall_benchmark.py` — benchmark suite (L1–L4)
