@@ -461,6 +461,9 @@ def run_task_once(
     cli_timeout_sec: int = 8,
     extra_system: str = "",
 ) -> Dict[str, Any]:
+    # IMPORTANT: include the original task in the returned run log so downstream
+    # verifiers/judges can evaluate completion.
+    task_original = task
     api_key = os.environ.get("OPENAI_API_KEY")
 
     def _to_output_item(tc_raw: Dict[str, Any], result_obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -503,7 +506,14 @@ def run_task_once(
                     status, j = _post_response(client, base_url, api_key, payload)
 
             if status != 200:
-                return {"ok": False, "error": f"HTTP_{status}", "raw": j, "steps": steps, "executed": executed}
+                return {
+                    "ok": False,
+                    "task": task_original,
+                    "error": f"HTTP_{status}",
+                    "raw": j,
+                    "steps": steps,
+                    "executed": executed,
+                }
 
             tool_calls = _extract_tool_calls(j)
             text = _extract_output_text(j)
@@ -573,6 +583,7 @@ def run_task_once(
 
     return {
         "ok": True,
+        "task": task_original,
         "sandbox": str(root),
         "final": final_text,
         "saw_final_answer": saw_final_answer,
@@ -633,11 +644,27 @@ def main() -> None:
         default=8,
         help="CLI timeout seconds (default 8).",
     )
-    ap.add_argument("--retries", type=int, default=0, help="Retry the whole task N additional times if it fails.")
+    ap.add_argument("--retries", type=int, default=0, help="Retry the whole task N additional times if it fails (legacy).")
     ap.add_argument(
         "--retry-temps",
         default="",
         help="Comma-separated temperature schedule for attempts (e.g. '1.0,0.7,0.2'). Default: use requested temp then 0.7 then 0.2.",
+    )
+    ap.add_argument(
+        "--auto-fix",
+        action="store_true",
+        help="Enable verifier-driven repair loop: run -> judge PASS/REDO -> if REDO, apply patch constraints and rerun.",
+    )
+    ap.add_argument(
+        "--max-rounds",
+        type=int,
+        default=3,
+        help="Max rounds for --auto-fix (default 3).",
+    )
+    ap.add_argument(
+        "--judge-skill",
+        default=str(Path(__file__).parent / "recipes" / "judge_skill_v1.md"),
+        help="Judge skill prompt (used by --auto-fix).",
     )
     args = ap.parse_args()
 
@@ -676,56 +703,209 @@ def main() -> None:
                 parts.append(f"{tool}({args}) -> ok={ok} err={res.get('error')}")
         return "\n".join(parts)
 
-    retries = getattr(args, "retries", 0)
+    def _judge_run(run: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
+        """Return (decision, brief_analysis, patch_json). Decision is PASS or REDO."""
+        judge_skill = Path(args.judge_skill).read_text("utf-8")
+
+        # Compact evidence summary (keep judge cheap + evidence-based)
+        executed = run.get("executed") or []
+        tail = executed[-10:] if isinstance(executed, list) else []
+        evidence = {
+            "ok": run.get("ok"),
+            "error": run.get("error"),
+            "saw_final_answer": run.get("saw_final_answer"),
+            "final_len": len((run.get("final") or "").strip()),
+            "executed_tail": [],
+        }
+        for e in tail:
+            if not isinstance(e, dict):
+                continue
+            tool = e.get("tool")
+            a = e.get("arguments") or {}
+            r = e.get("result") or {}
+            item = {"tool": tool, "ok": r.get("ok"), "error": r.get("error")}
+            if tool == "run_cli":
+                item["command"] = a.get("command")
+                item["stdout_tail"] = (r.get("stdout") or "")[-800:]
+            if tool == "fetch_url":
+                item["url"] = a.get("url")
+                item["status"] = r.get("status")
+            if tool in ("read_file", "write_file", "list_dir"):
+                item["path"] = a.get("path")
+            evidence["executed_tail"].append(item)
+
+        prompt = (
+            "TASK:\n" + (run.get("task") or task) + "\n\n"
+            "FINAL_OUTPUT:\n" + ((run.get("final") or "").strip() or "(empty)") + "\n\n"
+            "EVIDENCE(JSON):\n" + json.dumps(evidence, ensure_ascii=False, indent=2)
+        )
+
+        api_key = os.environ.get("OPENAI_API_KEY")
+        payload = {
+            "model": args.model,
+            "instructions": judge_skill,
+            "input": [{"role": "user", "content": [{"type": "input_text", "text": prompt}]}],
+            "temperature": 0.2,
+            "top_p": 1.0,
+            "max_output_tokens": 650,
+        }
+
+        with httpx.Client() as client:
+            status, j = _post_response(client, args.base_url, api_key, payload)
+            if status != 200:
+                return "REDO", f"judge_http_error: HTTP_{status}", {
+                    "decision": "REDO",
+                    "analysis": f"judge_http_error HTTP_{status}",
+                    "reasons": [{"tag": "tool_error", "because": "judge http error", "evidence": str(j)[:2000]}],
+                    "add_constraints": [],
+                }
+
+        out = _extract_output_text(j) or ""
+        # Parse decision
+        m = re.search(r"DECISION:\s*(PASS|REDO)", out)
+        decision = m.group(1) if m else "REDO"
+
+        # Parse patch json
+        patch: Dict[str, Any] = {}
+        m2 = re.search(r"PATCH_JSON:\s*(\{.*\})\s*$", out.strip(), flags=re.S)
+        if m2:
+            try:
+                patch = json.loads(m2.group(1))
+            except Exception:
+                patch = {}
+
+        brief_lines = []
+        for line in out.splitlines():
+            if line.strip().startswith("PATCH_JSON:"):
+                break
+            brief_lines.append(line)
+        brief = "\n".join(brief_lines).strip() or "(no analysis)"
+
+        if not patch:
+            patch = {
+                "decision": decision,
+                "analysis": brief[:500],
+                "reasons": [{"tag": "format_mismatch", "because": "missing/invalid PATCH_JSON", "evidence": "judge_output"}],
+                "add_constraints": [],
+            }
+        patch["decision"] = decision
+        return decision, brief, patch
+
+    # Attempt schedule (used for both legacy retries and auto-fix rounds)
     temps = getattr(args, "retry_temps", None)
     if temps:
         temp_schedule = [float(x) for x in temps.split(",") if x.strip()]
     else:
-        # default: start with requested temp, then become more conservative
         temp_schedule = [args.temperature, 0.7, 0.2]
 
     best: Dict[str, Any] | None = None
 
-    for attempt in range(retries + 1):
-        t = temp_schedule[min(attempt, len(temp_schedule) - 1)]
-
-        extra_system = (
-            recipe_text.strip()
-            + ("\n\n" if recipe_text.strip() else "")
-            + (
-                f"ATTEMPT {attempt+1}/{retries+1}. "
-                "If you already tried one approach before, try a DIFFERENT method now. "
-                "Do not repeat the same failed tool call; use alternative tools if possible (read_file vs write_file vs run_cli vs fetch_url)."
-            )
-        )
-
+    if args.auto_fix:
+        rounds = max(1, int(args.max_rounds))
+        # Start from the original task; later rounds may shrink it.
         task_i = task
-        if best is not None:
-            task_i += "\n\nPrevious attempt tool summary (do NOT repeat the same failed steps):\n" + summarize_attempt(best.get("executed") or [])
+        extra_constraints: List[str] = []
 
-        res = run_task_once(
-            base_url=args.base_url,
-            model=args.model,
-            task=task_i,
-            root=sandbox,
-            temperature=t,
-            top_p=args.top_p,
-            max_steps=args.max_steps,
-            verbose=args.verbose,
-            allow_any_cli=args.allow_any_cli,
-            allow_shell=args.allow_shell,
-            allow_abs_paths=args.allow_abs_paths,
-            cli_timeout_sec=args.cli_timeout,
-            extra_system=extra_system,
-        )
+        for r_i in range(rounds):
+            t = temp_schedule[min(r_i, len(temp_schedule) - 1)]
 
-        best = res
+            extra_system = recipe_text.strip()
+            if extra_system:
+                extra_system += "\n\n"
+            extra_system += (
+                f"ROUND {r_i+1}/{rounds}. "
+                "Your goal is to COMPLETE the user TASK. If the previous round was REDO, you MUST change strategy and satisfy the verifier constraints."
+            )
+            if extra_constraints:
+                extra_system += "\n\nVERIFIER_CONSTRAINTS (must follow):\n- " + "\n- ".join(extra_constraints)
 
-        # Success criteria: got final_answer and it's not TOOL_FAIL
-        if res.get("ok") and res.get("saw_final_answer") and (res.get("final") or "").strip() not in ("", "TOOL_FAIL"):
-            break
+            # Provide last attempt summary to avoid repeating failures.
+            if best is not None:
+                task_i = task_i + "\n\nPrevious round tool summary (avoid repeating failures):\n" + summarize_attempt(best.get("executed") or [])
 
-    res = best or {"ok": False, "error": "no_attempts"}
+            res = run_task_once(
+                base_url=args.base_url,
+                model=args.model,
+                task=task_i,
+                root=sandbox,
+                temperature=t,
+                top_p=args.top_p,
+                max_steps=args.max_steps,
+                verbose=args.verbose,
+                allow_any_cli=args.allow_any_cli,
+                allow_shell=args.allow_shell,
+                allow_abs_paths=args.allow_abs_paths,
+                cli_timeout_sec=args.cli_timeout,
+                extra_system=extra_system,
+            )
+
+            best = res
+
+            decision, brief, patch = _judge_run(res)
+            res["judge"] = {"decision": decision, "brief": brief, "patch": patch}
+
+            if decision == "PASS":
+                break
+
+            # Apply patch for next round
+            add_constraints = patch.get("add_constraints") or []
+            if isinstance(add_constraints, list):
+                extra_constraints.extend([str(x) for x in add_constraints if str(x).strip()])
+
+            shrink_task = patch.get("shrink_task")
+            if isinstance(shrink_task, str) and shrink_task.strip():
+                task_i = shrink_task.strip()
+
+            output_template = patch.get("output_template")
+            if isinstance(output_template, str) and output_template.strip():
+                extra_constraints.append("Output template (must follow):\n" + output_template.strip())
+
+        res = best or {"ok": False, "task": task, "error": "no_rounds"}
+
+    else:
+        # Legacy simple retries: temperature annealing + 'try different method'
+        retries = getattr(args, "retries", 0)
+
+        for attempt in range(retries + 1):
+            t = temp_schedule[min(attempt, len(temp_schedule) - 1)]
+
+            extra_system = (
+                recipe_text.strip()
+                + ("\n\n" if recipe_text.strip() else "")
+                + (
+                    f"ATTEMPT {attempt+1}/{retries+1}. "
+                    "If you already tried one approach before, try a DIFFERENT method now. "
+                    "Do not repeat the same failed tool call; use alternative tools if possible (read_file vs write_file vs run_cli vs fetch_url)."
+                )
+            )
+
+            task_i = task
+            if best is not None:
+                task_i += "\n\nPrevious attempt tool summary (do NOT repeat the same failed steps):\n" + summarize_attempt(best.get("executed") or [])
+
+            res = run_task_once(
+                base_url=args.base_url,
+                model=args.model,
+                task=task_i,
+                root=sandbox,
+                temperature=t,
+                top_p=args.top_p,
+                max_steps=args.max_steps,
+                verbose=args.verbose,
+                allow_any_cli=args.allow_any_cli,
+                allow_shell=args.allow_shell,
+                allow_abs_paths=args.allow_abs_paths,
+                cli_timeout_sec=args.cli_timeout,
+                extra_system=extra_system,
+            )
+
+            best = res
+
+            # Success criteria: got final_answer and it's not TOOL_FAIL
+            if res.get("ok") and res.get("saw_final_answer") and (res.get("final") or "").strip() not in ("", "TOOL_FAIL"):
+                break
+
+        res = best or {"ok": False, "task": task, "error": "no_attempts"}
 
     # Auto-save run log (enabled by default unless --no-save-run)
     save_path = None
